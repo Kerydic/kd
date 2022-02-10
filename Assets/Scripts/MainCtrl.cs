@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using KDGame.Base;
 using KDGame.Mgr;
 using KDGame.UI;
+using JDll;
+using UnityEngine;
 
 namespace KDGame
 {
@@ -19,9 +21,11 @@ namespace KDGame
 
 		private void Start()
 		{
-			AddMgr<AssetMgr>();
-			AddMgr<UIMgr>();
-			Preload();
+			// AddMgr<AssetMgr>();
+			// AddMgr<UIMgr>();
+			// Preload();
+			var go = JDll.JMain.GenNewGo(GameObject.Find("UIRoot").transform);
+			go.AddComponent<JMono>();
 		}
 
 		private IMgr AddMgr<T>() where T:IMgr

@@ -24,13 +24,13 @@ namespace KDGame.Editor.AssetBundle
 			BuildPipeline.BuildAssetBundles(abDirectory, BuildAssetBundleOptions.ChunkBasedCompression, target);
 		}
 
-		[MenuItem("KDGame/AssetBundle/Build Android", false, 1)]
+		[MenuItem(EditorMenuConst.AssetBundle + "Build Android", false, 1)]
 		public static void BuildAndroidAB()
 		{
 			BuildAllAssetBundles(BuildTarget.Android);
 		}
 
-		[MenuItem("KDGame/AssetBundle/Build iOS", false, 2)]
+		[MenuItem(EditorMenuConst.AssetBundle + "Build iOS", false, 2)]
 		public static void BuildIosAB()
 		{
 			BuildAllAssetBundles(BuildTarget.iOS);

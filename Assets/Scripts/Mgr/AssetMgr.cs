@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using KDGame.Base;
 using KDGame.Util;
 using UnityEngine;
@@ -14,142 +15,194 @@ namespace KDGame.Mgr
 		private const string ManifestPath = "assetbundles";
 		private const string ManifestName = "AssetBundleManifest";
 
+		// 资源引用归零后多久卸载
+		private static int UnloadInterval = 10;
+
 		// 资源清单，用于加载依赖
 		private AssetBundleManifest _manifest;
 
-		// 加载到内存中的AssetBundle
-		private Dictionary<string, AssetBundle> _loadedBundles;
+		// 还未被Unload的LoadCert
+		private Dictionary<ulong, LoadCert> _certDict;
 
-		// 每个Bundle的被依赖列表
-		private Dictionary<string, HashSet<string>> _dependentMap;
+		// 已加载或正在加载的AssetBundle及依赖它的LoadCert信息
+		private Dictionary<string, LoadInfo> _loadedInfo;
 
-		// 需要异步加载的AssetBundle队列
-		private Queue<string> _toAsyncLoadBundles;
-
-		// 一次性加载的资源的组合列表
-		private List<GroupLoadRequest> _groupRequests;
-
-		// 当前正在加载的AssetBundle
-		private AssetBundleCreateRequest _currLoadRequest;
+		// 当前正在异步加载的AssetBundle请求
+		private Dictionary<string, AssetBundleCreateRequest> _requestMap;
 
 		private KDLog _logger;
 
 		protected override void OnAwake()
 		{
 			base.OnAwake();
+			_logger = new KDLog("AssetMgr");
+
+			InitManifest();
+			_certDict = new Dictionary<ulong, LoadCert>();
+			_loadedInfo = new Dictionary<string, LoadInfo>();
+			_requestMap = new Dictionary<string, AssetBundleCreateRequest>();
+		}
+
+		/// <summary>
+		/// 初始化资源清单
+		/// </summary>
+		private void InitManifest()
+		{
 			AssetBundle ab = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, ManifestPath));
 			_manifest = ab.LoadAsset<AssetBundleManifest>(ManifestName);
-
-			_loadedBundles = new Dictionary<string, AssetBundle>();
-			_dependentMap = new Dictionary<string, HashSet<string>>();
-
-			_toAsyncLoadBundles = new Queue<string>();
-			_groupRequests = new List<GroupLoadRequest>();
-
-			_logger = new KDLog("AssetMgr");
+			ab.Unload(true);
 		}
 
 		public void Restart()
 		{
 		}
 
-		public void Unload(string path)
+		internal void Unload(string bundleName, ulong certID)
 		{
-			string bundleName = ABUtil.GetBundleByPath(path);
-			if (!_loadedBundles.ContainsKey(bundleName))
-			{
-				if (_toAsyncLoadBundles.Contains(bundleName))
-				{
-					if (_currLoadRequest != null && _toAsyncLoadBundles.Peek() == bundleName)
-					{
-						// TODO 正在异步加载的资源如何卸载
-					}
-					else
-					{
-						// TODO 移除指定BundleName
-					}
-				}
+			if (_loadedInfo.TryGetValue(bundleName, out var info))
+				info.RmCert(certID);
+		}
 
-				return;
+		/// <summary>
+		/// 生成LoadCert
+		/// </summary>
+		/// <param name="assetInfos">每个资源的路径及类型</param>
+		/// <returns></returns>
+		private LoadCert GetLoadCert(ToLoadAsset[] assetInfos)
+		{
+			if (assetInfos == null || assetInfos.Length <= 0)
+				return null;
+			List<string> bundles = new List<string>();
+			// 解析这些资源路径所需的Bundle及依赖
+			foreach (ToLoadAsset info in assetInfos)
+			{
+				string bundleName = ABUtil.GetBundleByPath(info.AssetPath);
+				bundles.Add(bundleName);
+				foreach (var bName in _manifest.GetAllDependencies(bundleName))
+				{
+					bundles.Add(bName);
+				}
 			}
 
-			_loadedBundles[bundleName].Unload(true);
-			RmDependent(bundleName);
-			foreach (KeyValuePair<string, AssetBundle> kv in _loadedBundles)
+			return new LoadCert(bundles.ToArray(), assetInfos);
+		}
+
+		/// <summary>
+		/// 将同类型的资源路径转化为ToLoadAsset数组
+		/// </summary>
+		/// <param name="paths">资源路径列表</param>
+		/// <typeparam name="T">资源类型</typeparam>
+		/// <returns></returns>
+		private ToLoadAsset[] GenAssetInfos<T>(string[] paths)
+		{
+			if (paths == null || paths.Length <= 0) return null;
+			int count = paths.Length;
+			ToLoadAsset[] infos = new ToLoadAsset[count];
+			Type type = typeof(T);
+			for (int i = 0; i < count; ++i)
 			{
-				if (!IsReferenced(kv.Key))
+				infos[i] = new ToLoadAsset
 				{
-					kv.Value.Unload(true);
-					_loadedBundles[kv.Key] = null;
-				}
+					AssetPath = paths[i],
+					AssetType = type
+				};
+			}
+
+			return infos;
+		}
+
+		private void LogAssetInfos(string prefix, ToLoadAsset[] infos)
+		{
+			StringBuilder builder = new StringBuilder(prefix);
+			builder.AppendFormat(", count: {0}", infos.Length);
+			foreach (var info in infos)
+			{
+				builder.AppendFormat("type: {0}, path: {1}\n", info.AssetType, info.AssetPath);
+			}
+
+			_logger.Info(builder.ToString());
+		}
+
+		/// <summary>
+		/// 初始化Cert中每个请求加载的资源
+		/// </summary>
+		/// <param name="cid"></param>
+		private void ExtractObjInCert(ulong cid)
+		{
+			if (!_certDict.TryGetValue(cid, out LoadCert cert))
+				return;
+			// 提取Bundle中的资源
+			int count = cert.AssetInfos.Length;
+			cert.Objs = new UnityObj[count];
+			for (int i = 0; i < count; ++i)
+			{
+				string path = cert.AssetInfos[i].AssetPath;
+				Type type = cert.AssetInfos[i].AssetType;
+				string bundleName = ABUtil.GetBundleByPath(path);
+				string goName = Path.GetFileName(path);
+				cert.Objs[i] = _loadedInfo[bundleName]?.BundleAsset.LoadAsset(goName, type);
 			}
 		}
 
-		public T[] LoadAsset<T>(string path) where T : UnityObj
+		#region Synchronize Load
+
+		public LoadCert LoadAsset<T>(string path) where T : UnityObj
 		{
 			return LoadAsset<T>(new[] {path});
 		}
 
-		// 同步加载资源，禁止在异步加载未完成时同步加载同一个资源
-		public T[] LoadAsset<T>(string[] paths) where T : UnityObj
+		/// <summary>
+		/// 同步加载资源，禁止在异步加载未完成时同步加载同一个资源
+		/// </summary>
+		/// <param name="paths">需要加载的资源的路径</param>
+		/// <typeparam name="T">这些资源的类型</typeparam>
+		/// <returns></returns>
+		public LoadCert LoadAsset<T>(string[] paths) where T : UnityObj
 		{
-			int count = paths.Length;
-			_logger.Info("Invoke LoadAsset, type: {0}, count: {1}, paths: {2}", typeof(T), count,
-				string.Join(",", paths));
-			if (count <= 0)
-			{
-				return null;
-			}
-
-			T[] resAry = new T[count];
-			for (int i = 0; i < count; ++i)
-			{
-				string bundleName = ABUtil.GetBundleByPath(paths[i]);
-				// 若该Bundle没有加载到内存，则加载其所有依赖和本体
-				if (!_loadedBundles.ContainsKey(bundleName))
-				{
-					string[] dependencies = _manifest.GetAllDependencies(bundleName);
-					foreach (string dependency in dependencies)
-					{
-						if (_loadedBundles.ContainsKey(dependency))
-						{
-							continue;
-						}
-
-						_logger.Info("Try load dependency: {0}", dependency);
-						AssetBundle dependentAb =
-							AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, dependency));
-						if (dependentAb == null)
-						{
-							_logger.Error("Failed to load dependent AssetBundle: {0}", dependency);
-							continue;
-						}
-
-						_logger.Info("Load dependency succeed: {0}", dependency);
-						OnNewBundleLoaded(dependency, dependentAb);
-					}
-
-					AssetBundle bundle =
-						AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, bundleName));
-					if (bundle == null)
-					{
-						_logger.Error("Failed to load AssetBundle! Path: {0}", paths[i]);
-						return null;
-					}
-
-					OnNewBundleLoaded(bundleName, bundle);
-				}
-
-				string goName = Path.GetFileName(paths[i]);
-				resAry[i] = _loadedBundles[bundleName].LoadAsset<T>(goName);
-			}
-
-			return resAry;
+			return LoadAsset(GenAssetInfos<T>(paths));
 		}
 
-		public void LoadAssetAsync<T>(string path, Action<bool, T> onEnd) where T : UnityObj
+		public LoadCert LoadAsset(ToLoadAsset[] assetInfos)
 		{
-			LoadAssetAsync<T>(new[] {path}, (success, objects) =>
+			LogAssetInfos("Invoke LoadAsset(Sync):", assetInfos);
+			LoadCert cert = GetLoadCert(assetInfos);
+			if (cert == null) return null;
+			_certDict[cert.ID] = cert;
+
+			// 根据LoadCert中的bundleName，创建/重利用ABLoadInfo
+			foreach (var bName in cert.BundleNames)
+			{
+				if (!_loadedInfo.TryGetValue(bName, out LoadInfo info))
+				{
+					info = new LoadInfo(bName);
+					_loadedInfo.Add(bName, info);
+				}
+
+				info.AddCert(cert.ID);
+				if (info.BundleAsset == null)
+				{
+					AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, bName));
+					info.BundleAsset = bundle;
+					info.Status = bundle != null ? LoadStatus.Success : LoadStatus.Fail;
+					if (info.Status != LoadStatus.Success)
+					{
+						_logger.Error("Load Bundle Failed: " + bName);
+					}
+				}
+			}
+
+			ExtractObjInCert(cert.ID);
+
+			return cert;
+		}
+
+		#endregion
+
+		#region Asynchronize Load
+
+		public LoadCert LoadAssetAsync<T>(string path, Action<bool, T> onEnd) where T : UnityObj
+		{
+			return LoadAssetAsync<T>(new[] {path}, (success, objects) =>
 			{
 				if (!success)
 					onEnd.Invoke(false, null);
@@ -159,206 +212,190 @@ namespace KDGame.Mgr
 		}
 
 		// 异步加载资源
-		public void LoadAssetAsync<T>(string[] paths, Action<bool, T[]> onEnd) where T : UnityObj
+		public LoadCert LoadAssetAsync<T>(string[] paths, Action<bool, T[]> onEnd) where T : UnityObj
 		{
-			int count = paths.Length;
-			_logger.Info("Invoke LoadAssetAsync, type: {0}, count: {1}, paths: {2}", typeof(T), count,
-				string.Join(",", paths));
-			if (count <= 0)
+			return LoadAssetAsync(GenAssetInfos<T>(paths), (success, objects) =>
 			{
-				onEnd.Invoke(false, null);
-				return;
-			}
-
-			HashSet<string> bundleNames = new HashSet<string>();
-			bool needLoad = false;
-			for (int i = 0; i < count; ++i)
-			{
-				string bundleName = ABUtil.GetBundleByPath(paths[i]);
-				bundleNames.Add(bundleName);
-				if (_loadedBundles.ContainsKey(bundleName))
-				{
-					continue;
-				}
-
-				// 只要任何一个Bundle仍未加载进内存，就需要走异步加载流程
-				needLoad = true;
-
-				// 已经在异步加载的资源，跳过
-				if (_toAsyncLoadBundles.Contains(bundleName))
-				{
-					continue;
-				}
-
-				// 尚未在异步加载的资源，将其与其所有尚未加载的依赖加入加载队列
-				foreach (string dependency in _manifest.GetAllDependencies(bundleName))
-				{
-					if (_loadedBundles.ContainsKey(dependency) || _toAsyncLoadBundles.Contains(dependency))
-					{
-						continue;
-					}
-
-					_logger.Info("Append dependency: {0}", dependency);
-					_toAsyncLoadBundles.Enqueue(dependency);
-				}
-
-				_toAsyncLoadBundles.Enqueue(bundleName);
-			}
-
-			Action<bool> onLoadEnd = success =>
-			{
-				if (!success)
-				{
-					onEnd.Invoke(false, null);
-					return;
-				}
-
-				T[] resAry = new T[count];
-				for (int i = 0; i < count; ++i)
-				{
-					string path = paths[i];
-					resAry[i] = _loadedBundles[ABUtil.GetBundleByPath(path)].LoadAsset<T>(Path.GetFileName(path));
-				}
-
-				onEnd.Invoke(true, resAry);
-			};
-
-			if (!needLoad)
-			{
-				onLoadEnd.Invoke(true);
-				return;
-			}
-
-			_groupRequests.Add(new GroupLoadRequest
-			{
-				bundleNames = bundleNames,
-				onLoadEnd = onLoadEnd
+				
+				// TODO
+				// onEnd.Invoke(success, objects);
 			});
 		}
 
-		// 新Bundle加载到内存时，为其所有依赖添加依赖关系
-		private void OnNewBundleLoaded(string bundleName, AssetBundle bundle)
+		public LoadCert LoadAssetAsync(ToLoadAsset[] assetInfos, Action<bool, UnityObj[]> onEnd)
 		{
-			_loadedBundles[bundleName] = bundle;
-			foreach (string dependency in _manifest.GetAllDependencies(bundleName))
+			LogAssetInfos("Invoke LoadAssetAsync: ", assetInfos);
+			LoadCert cert = GetLoadCert(assetInfos);
+			if (cert == null) return null;
+
+			_certDict[cert.ID] = cert;
+			cert.OnLoadEnd = onEnd;
+
+			// 根据LoadCert中的bundleName，创建/重利用ABLoadInfo
+			foreach (var bName in cert.BundleNames)
 			{
-				if (_dependentMap[dependency] == null)
+				if (!_loadedInfo.TryGetValue(bName, out LoadInfo info))
 				{
-					_dependentMap[dependency] = new HashSet<string>();
+					info = new LoadInfo(bName);
+					_loadedInfo.Add(bName, info);
 				}
 
-				_dependentMap[dependency].Add(bundleName);
-			}
-		}
-
-		private bool IsReferenced(string bundleName)
-		{
-			if (_dependentMap.TryGetValue(bundleName, out HashSet<string> dependents))
-			{
-				return dependents.Count > 0;
-			}
-
-			return false;
-		}
-
-		// 将一个Bundle从依赖关系列表中移除
-		private void RmDependent(string bundleName)
-		{
-			HashSet<string> dependents;
-			foreach (string dependency in _manifest.GetAllDependencies(bundleName))
-			{
-				if (_dependentMap.TryGetValue(dependency, out dependents))
+				info.AddCert(cert.ID);
+				if (info.BundleAsset == null && _requestMap.ContainsKey(bName))
 				{
-					dependents.Remove(bundleName);
-				}
-			}
-		}
-
-		#region ASYNC LOAD LOGIC
-
-		private void Update()
-		{
-			// 这一帧刚好有Bundle加载完毕，则根据是否加载完成进行事件派出
-			if (_currLoadRequest != null && _currLoadRequest.isDone)
-			{
-				string loadingBundleName = _toAsyncLoadBundles.Dequeue();
-				bool loadSucceed = false;
-				AssetBundle bundle = _currLoadRequest.assetBundle;
-				if (bundle != null && bundle.name == loadingBundleName)
-				{
-					loadSucceed = true;
-					OnNewBundleLoaded(loadingBundleName, bundle);
-				}
-				else
-				{
-					_logger.Error("Failed to load bundle async: {0}", loadingBundleName);
-				}
-
-				_currLoadRequest = null;
-				List<int> removedIndex = new List<int>();
-				for (int i = 0; i < _groupRequests.Count; ++i)
-				{
-					GroupLoadRequest req = _groupRequests[i];
-					if (!req.bundleNames.Contains(loadingBundleName))
-					{
-						continue;
-					}
-
-					if (!loadSucceed)
-					{
-						req.onLoadEnd.Invoke(false);
-						removedIndex.Add(i);
-						continue;
-					}
-
-					bool isAllLoaded = true;
-					foreach (string bundleName in req.bundleNames)
-					{
-						if (_loadedBundles[bundleName] == null)
-						{
-							isAllLoaded = false;
-						}
-					}
-
-					if (isAllLoaded)
-					{
-						req.onLoadEnd.Invoke(true);
-						removedIndex.Add(i);
-					}
-				}
-
-				int index = removedIndex.Count - 1;
-				for (int i = _groupRequests.Count - 1; i > -1; --i)
-				{
-					if (index < 0)
-					{
-						break;
-					}
-
-					if (i == removedIndex[index])
-					{
-						_groupRequests.RemoveAt(i);
-						--index;
-					}
+					_requestMap.Add(bName,
+						AssetBundle.LoadFromFileAsync(Path.Combine(Application.streamingAssetsPath, bName)));
 				}
 			}
 
-			if (_currLoadRequest == null && _toAsyncLoadBundles.Count > 0)
-			{
-				string bundleName = _toAsyncLoadBundles.Peek();
-
-				_currLoadRequest =
-					AssetBundle.LoadFromFileAsync(Path.Combine(Application.streamingAssetsPath, bundleName));
-			}
+			return cert;
 		}
 
 		#endregion
+
+		private void Update()
+		{
+			// 如果有正在处理的异步加载，处理
+			if (_requestMap.Count > 0)
+			{
+				foreach (var kv in _requestMap.Where(kv => kv.Value.isDone))
+				{
+					_requestMap.Remove(kv.Key);
+					OnABCreateReqDone(kv.Key, kv.Value);
+				}
+			}
+
+			// 处理卸载后超过一定时长的Bundle
+			long time = TimeUtil.NowTimeStamp();
+			foreach (var kv in _loadedInfo)
+			{
+				var info = kv.Value;
+				if (time - info.MarkTime >= UnloadInterval)
+				{
+					info.Unload(false);
+				}
+
+				_loadedInfo.Remove(kv.Key);
+			}
+		}
+
+		// 当一个异步加载流程结束
+		private void OnABCreateReqDone(string bName, AssetBundleCreateRequest req)
+		{
+			if (!req.isDone) return;
+			var ab = req.assetBundle;
+			// 已经被卸载掉了
+			if (!_loadedInfo.TryGetValue(bName, out var info))
+			{
+				ab.Unload(true);
+				return;
+			}
+
+			info.BundleAsset = ab;
+			info.Status = ab != null ? LoadStatus.Success : LoadStatus.Fail;
+			if (info.Status != LoadStatus.Success)
+			{
+				_logger.Error("Load Bundle Failed: " + bName);
+			}
+		}
 	}
 
-	// 同时加载多个资源的请求
-	public struct GroupLoadRequest
+	internal enum LoadStatus
 	{
-		public HashSet<string> bundleNames;
-		public Action<bool> onLoadEnd;
+		Init,
+		Success,
+		Fail
+	}
+
+	/// <summary>
+	/// 保存BundleName及所有引用这个Bundle的LoadCert的ID，当LoadCert数量降为0，即进入卸载流程
+	/// </summary>
+	internal class LoadInfo
+	{
+		public static bool UnloadAllLoadedObjects = true;
+		public string BundleName;
+		public LoadStatus Status = LoadStatus.Init;
+		public AssetBundle BundleAsset;
+		private readonly HashSet<ulong> _certIDs;
+
+		/// <summary>
+		/// 被标记为可卸载的时间，时间戳，为-1时表示不能卸载
+		/// </summary>
+		public long MarkTime = -1;
+
+		public LoadInfo(string bundleName)
+		{
+			BundleName = bundleName;
+			_certIDs = new HashSet<ulong>();
+		}
+
+		public void Unload(bool force)
+		{
+			if (force || _certIDs.Count <= 0)
+			{
+				BundleAsset.Unload(UnloadAllLoadedObjects);
+			}
+		}
+
+		public void AddCert(ulong cid)
+		{
+			_certIDs.Add(cid);
+			MarkTime = -1;
+		}
+
+		/// <summary>
+		/// 移除某个LoadCert对此Bundle的引用
+		/// </summary>
+		/// <param name="cid"></param>
+		public void RmCert(ulong cid)
+		{
+			if (_certIDs.Contains(cid))
+				_certIDs.Remove(cid);
+			if (_certIDs.Count <= 0)
+				MarkTime = TimeUtil.NowTimeStamp();
+		}
+	}
+
+	/// <summary>
+	/// 请求一个/一组资源的证明，该证明由AssetMgr创建，有且仅有持有该证明时，外部才能显式卸载该资源
+	/// </summary>
+	public class LoadCert
+	{
+		// 自增的证明ID，用来唯一标记证明
+		private static ulong _certID;
+
+		public readonly ulong ID;
+		private bool _unloaded;
+
+		public string[] BundleNames { get; }
+		public ToLoadAsset[] AssetInfos { get; }
+
+		public UnityObj[] Objs;
+		public Action<bool, UnityObj[]> OnLoadEnd;
+
+		public LoadCert(string[] bundleNames, ToLoadAsset[] toLoads)
+		{
+			ID = ++_certID;
+			BundleNames = bundleNames;
+			AssetInfos = toLoads;
+		}
+
+		public void Unload()
+		{
+			if (_unloaded)
+				return;
+			foreach (var name in BundleNames)
+				AssetMgr.Instance.Unload(name, ID);
+			_unloaded = true;
+		}
+	}
+
+	/// <summary>
+	/// 业务意图加载的资源，包含资源路径和资源类型
+	/// </summary>
+	public struct ToLoadAsset
+	{
+		public Type AssetType;
+		public string AssetPath;
 	}
 }

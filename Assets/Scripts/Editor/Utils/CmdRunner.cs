@@ -1,4 +1,7 @@
-﻿namespace KDGame.Editor.Utils
+﻿using System;
+using UnityEngine;
+
+namespace KDGame.Editor.Utils
 {
 	public class CmdRunner
 	{
@@ -15,7 +18,16 @@
 			var process = CreateCmdProcess(cmd, args, workDir);
 			output[0] = process.StandardOutput.ReadToEnd();
 			output[1] = process.StandardError.ReadToEnd();
-			process.Close();
+			try
+			{
+				process.Close();
+				process.Dispose();
+			}
+			catch (Exception e)
+			{
+				Debug.Log("Release process exception: " + e);
+			}
+
 			return output;
 		}
 

@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System.Globalization;
+using UnityEditor;
 
 namespace KDGame.Util
 {
@@ -6,6 +7,8 @@ namespace KDGame.Util
 	{
 		private const string UIAssetPathPrefix = "Assets/AssetUI";
 		private const string SceneObjPathPrefix = "Assets/AssetScene";
+
+		private static CultureInfo _enCulture = null;
 
 		public static bool IsValidAsset(string path)
 		{
@@ -19,6 +22,7 @@ namespace KDGame.Util
 			{
 				return null;
 			}
+
 			if (path.StartsWith(UIAssetPathPrefix))
 			{
 				path.Replace(UIAssetPathPrefix, "ui_");
@@ -34,7 +38,9 @@ namespace KDGame.Util
 
 			path.Split('/');
 
-			return string.Join("_", path.Split('/'));
+			_enCulture ??= new CultureInfo("en-US");
+
+			return string.Join("_", path.Split('/')).ToLower(_enCulture);
 		}
 	}
 }

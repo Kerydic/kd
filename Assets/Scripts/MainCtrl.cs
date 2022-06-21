@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using KDGame.Base;
 using KDGame.Mgr;
 using KDGame.UI;
-using JDll;
 using UnityEngine;
 
 namespace KDGame
@@ -12,7 +11,9 @@ namespace KDGame
 	public class MainCtrl : MonoSingleton<MainCtrl>
 	{
 		private List<IMgr> _mgrList = new List<IMgr>();
-		
+
+		public static Transform Trans => Instance.transform;
+
 		protected override void OnAwake()
 		{
 			base.OnAwake();
@@ -21,25 +22,23 @@ namespace KDGame
 
 		private void Start()
 		{
-			// AddMgr<AssetMgr>();
-			// AddMgr<UIMgr>();
-			// Preload();
-			var go = JDll.JMain.GenNewGo(GameObject.Find("UIRoot").transform);
-			go.AddComponent<JMono>();
+			AddMgr<AssetMgr>();
+			AddMgr<UIMgr>();
+			Preload();
 		}
 
-		private IMgr AddMgr<T>() where T:IMgr
+		private IMgr AddMgr<T>() where T : MonoSingleton<T>, IMgr
 		{
-			var mgr = gameObject.AddComponent<UIMgr>();
+			var mgr = gameObject.AddComponent<T>();
 			_mgrList.Add(mgr);
 			return mgr;
 		}
 
 		private void Preload()
 		{
-			UIMgr.Instance.PlaySplash();
-			// Do load
-			UIMgr.Instance.DestroySplash();
+			// Do load, maybe async?
+			// Destroy the splash screen
+			// GameObject.Destroy(GameObject.Find("Splash"));
 		}
 
 		public void Restart()

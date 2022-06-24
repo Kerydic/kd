@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using KDGame.Base;
 using KDGame.Mgr;
+using KDGame.Util;
 using UnityEngine;
 
 namespace KDGame.UI
@@ -10,11 +11,14 @@ namespace KDGame.UI
 	{
 		private Transform _uiRoot;
 		private Dictionary<UIDepth, UILayer> _layerDict;
+		private KDLog _logger;
 
-		private void Awake()
+		protected override void OnAwake()
 		{
+			base.OnAwake();
 			_uiRoot = GameObject.Find("UIRoot").transform;
 			_layerDict = new Dictionary<UIDepth, UILayer>();
+			_logger = new KDLog("UIMgr", "FF0000");
 		}
 
 		public void Restart()
@@ -23,18 +27,21 @@ namespace KDGame.UI
 			CreateLayers();
 		}
 
+		private LoadCert _layerCert;
+
 		public void CreateLayers()
 		{
-			// AssetMgr.Instance.LoadAssetAsync<GameObject>(UIPath.UILayer, (success, obj) =>
-			// {
-			// 	foreach (UIDepth uiDepth in Enum.GetValues(typeof(UIDepth)))
-			// 	{
-			// 		Debug.Log($"Create UI layer, name: {uiDepth}, depth: {(int) uiDepth}");
-			// 		var layer = GameObject.Instantiate(obj, _uiRoot);
-			// 		layer.name = Enum.GetName(typeof(UIDepth), uiDepth) ?? "Unknown"[;
-			// 		layer.GetComponent<UILayer>().InitDepth((int) uiDepth);
-			// 	}
-			// });
+			_layerCert = AssetMgr.LoadAsset<GameObject>(UIConst.LayerPath);
+			foreach (UIDepth uiDepth in Enum.GetValues(typeof(UIDepth)))
+			{
+				_logger.Info($"Create UI layer, name: {uiDepth}, depth: {(int) uiDepth}");
+				var layer = GameObject.Instantiate(_layerCert.Objs[0] as GameObject, _uiRoot);
+				layer.name = Enum.GetName(typeof(UIDepth), uiDepth) ?? "Unknown";
+				var uiLayer = layer.GetComponent<UILayer>();
+				uiLayer.InitDepth((int) uiDepth);
+
+				_layerDict[uiDepth] = uiLayer;
+			}
 		}
 
 		public void DestroyLayers()
@@ -47,13 +54,18 @@ namespace KDGame.UI
 			}
 
 			_layerDict.Clear();
+			if (_layerCert != null)
+			{
+				_layerCert.Unload();
+				_layerCert = null;
+			}
 		}
 
-		#region 界面显示
+		#region View Show
 
-		public void ShowView(ViewForm vf)
+		public void ShowView(ViewForm vf, Action<UIView> onShowEnd = null)
 		{
-			ShowViewInternal(vf.Path, vf.Depth);
+			ShowViewInternal(vf.Path, vf.Depth, onShowEnd);
 		}
 
 		/// <summary>
@@ -61,16 +73,72 @@ namespace KDGame.UI
 		/// </summary>
 		/// <param name="vf">页面参数</param>
 		/// <param name="depth">期望的页面深度</param>
-		public void ShowView(ViewForm vf, UIDepth depth)
+		/// <param name="onShowEnd">页面显示结束回调</param>
+		public void ShowView(ViewForm vf, UIDepth depth, Action<UIView> onShowEnd = null)
 		{
-			ShowViewInternal(vf.Path, depth);
+			ShowViewInternal(vf.Path, depth, onShowEnd);
 		}
 
-		private void ShowViewInternal(string assetPath, UIDepth depth)
+		private ulong _uniqViewID = 0;
+		private Dictionary<ulong, ShowingUIView> _showingViews = new Dictionary<ulong, ShowingUIView>();
+
+		private void ShowViewInternal(string assetPath, UIDepth depth, Action<UIView> onShowEnd = null)
 		{
-			
+			LoadCert cert = AssetMgr.LoadAsset<GameObject>(assetPath);
+			if (cert.Status != LoadStatus.Success)
+			{
+				_logger.Error("ShowView fail, due to LoadAssetFail.");
+				return;
+			}
+
+			if (!_layerDict.TryGetValue(depth, out UILayer layer))
+			{
+				_logger.Error("ShowView fail, due to invalid UILayer.");
+				cert.Unload();
+				return;
+			}
+
+			ulong viewID = ++_uniqViewID;
+
+			GameObject viewGo = GameObject.Instantiate((GameObject) cert.Objs[0], layer.GetRoot());
+			UIView view = viewGo.GetComponent<UIView>();
+			view.OnCreateEnd(viewID);
+
+			ShowingUIView curr = new ShowingUIView();
+			curr.ID = viewID;
+			curr.View = view;
+			curr.AssetCert = cert;
+			_showingViews[curr.ID] = curr;
+
+			onShowEnd?.Invoke(view);
 		}
 
 		#endregion
+
+		#region View Hide/Destroy
+
+		public void HideView(ulong viewID)
+		{
+		}
+
+		private void DestroyView(ulong viewID)
+		{
+			if (_showingViews.TryGetValue(viewID, out ShowingUIView showing))
+			{
+				showing.View.OnViewDestroy();
+				GameObject.Destroy(showing.View.gameObject);
+				showing.AssetCert.Unload();
+				_showingViews[viewID] = null;
+			}
+		}
+
+		#endregion
+	}
+
+	public class ShowingUIView
+	{
+		public ulong ID;
+		public UIView View;
+		public LoadCert AssetCert;
 	}
 }

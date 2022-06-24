@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package KDGame.PB;
+
+enum LogicEvent{
+		Nothing = 0;
+	
+		LaunchBtnClick = 1;
+}

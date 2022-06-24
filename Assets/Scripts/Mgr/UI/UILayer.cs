@@ -12,5 +12,10 @@ namespace KDGame.UI
 		{
 			_camera.depth = depth;
 		}
+
+		public Transform GetRoot()
+		{
+			return _canvas.transform;
+		}
 	}
 }

@@ -14,6 +14,7 @@ namespace KDGame.Mgr
 
 		protected override void OnAwake()
 		{
+			base.OnAwake();
 #if UNITY_EDITOR
 			_logic = new AssetEditorLogic();
 #else

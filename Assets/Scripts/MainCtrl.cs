@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using KDGame.Base;
 using KDGame.Mgr;
+using KDGame.Module;
 using KDGame.UI;
 using UnityEngine;
 
@@ -22,9 +23,12 @@ namespace KDGame
 
 		private void Start()
 		{
+			SetGameFrame(60);
+			// Add basic Mgr
 			AddMgr<AssetMgr>();
 			AddMgr<UIMgr>();
-			Preload();
+			// Start game logic
+			OnLaunch();
 		}
 
 		private IMgr AddMgr<T>() where T : MonoSingleton<T>, IMgr
@@ -34,13 +38,6 @@ namespace KDGame
 			return mgr;
 		}
 
-		private void Preload()
-		{
-			// Do load, maybe async?
-			// Destroy the splash screen
-			// GameObject.Destroy(GameObject.Find("Splash"));
-		}
-
 		public void Restart()
 		{
 			foreach (var mgr in _mgrList)
@@ -48,5 +45,35 @@ namespace KDGame
 				mgr.Restart();
 			}
 		}
+
+		public void SetGameFrame(int frame)
+		{
+			Application.targetFrameRate = frame;
+		}
+
+		#region Main Logic
+
+		private HashSet<LogicCtrl> _ctrlSet;
+
+		// 游戏开始
+		private void OnLaunch()
+		{
+			UIMgr.Instance.CreateLayers();
+			Destroy(GameObject.Find("Splash"));
+
+			_ctrlSet = new HashSet<LogicCtrl>();
+			_ctrlSet.Add(new LaunchCtrl());
+			_ctrlSet.Add(new GizmosCtrl());
+		}
+
+		private void OnRelaunch()
+		{
+			foreach (var ctrl in _ctrlSet)
+			{
+				ctrl.ForceQuit();
+			}
+		}
+
+		#endregion
 	}
 }

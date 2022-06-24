@@ -5,7 +5,7 @@ namespace KDGame.Util
 	public class KDLog
 	{
 		private string _tag;
-		private bool _useTrace = false;
+		private bool _useTrace;
 		private string _colorStr;
 
 		public KDLog(string tag)
@@ -52,7 +52,7 @@ namespace KDGame.Util
 
 		public void Info(string reg, params object[] param)
 		{
-			UnityLog.Log(_tag + reg);
+			UnityLog.Log(_tag + string.Format(reg, param));
 		}
 
 		public void Debug(string reg, params object[] param)

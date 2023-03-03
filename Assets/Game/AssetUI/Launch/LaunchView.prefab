@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9166256143978728898}
   - component: {fileID: 9138300715324278483}
   - component: {fileID: 2653653689281270973}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: BtnStart
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -29,6 +29,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7509919691046035373}
   m_Father: {fileID: 5152088007909486914}
@@ -132,7 +133,7 @@ GameObject:
   - component: {fileID: 5152088007909486914}
   - component: {fileID: 3072200669776286326}
   - component: {fileID: 1912662071809974922}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: LaunchView
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -149,6 +150,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4790943871932995862}
   - {fileID: 3491702106322776983}
@@ -194,7 +196,7 @@ GameObject:
   - component: {fileID: 4790943871932995862}
   - component: {fileID: 6676678435438384784}
   - component: {fileID: 3699771045657160573}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Bg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -211,6 +213,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5152088007909486914}
   m_RootOrder: 0
@@ -271,7 +274,7 @@ GameObject:
   - component: {fileID: 171845270265207882}
   - component: {fileID: 3635534631094806928}
   - component: {fileID: 1966606201835793845}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -288,6 +291,7 @@ RectTransform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3491702106322776983}
   m_RootOrder: 0

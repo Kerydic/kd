@@ -14,6 +14,10 @@ namespace KDGame.UI
         public void OnCreateEnd(ulong viewID)
         {
 	        this.viewID = viewID;
+	        foreach (var trans in gameObject.GetComponentsInChildren<Transform>(true))
+	        {
+		        trans.gameObject.layer = LayerMask.NameToLayer("UI");
+	        }
         }
 
         public void OnViewDestroy()

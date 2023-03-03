@@ -17,5 +17,10 @@ namespace KDGame.UI
 		{
 			return _canvas.transform;
 		}
+
+		public Camera GetCamera()
+		{
+			return _camera;
+		}
 	}
 }

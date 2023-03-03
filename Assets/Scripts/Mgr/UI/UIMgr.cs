@@ -10,6 +10,7 @@ namespace KDGame.UI
 	public class UIMgr : MonoSingleton<UIMgr>, IMgr
 	{
 		private Transform _uiRoot;
+		private MainCamera _mainCamera;
 		private Dictionary<UIDepth, UILayer> _layerDict;
 		private KDLog _logger;
 
@@ -29,6 +30,23 @@ namespace KDGame.UI
 
 		private LoadCert _layerCert;
 
+		/// <summary>
+		/// 设置当前的主相机，并将所有UI层全部移到其CameraStack中
+		/// </summary>
+		/// <param name="mainCamera">主相机</param>
+		public void SetMainCamera(MainCamera mainCamera)
+		{
+			if (_mainCamera)
+			{
+				_mainCamera.ClearCameraStack();
+			}
+			_mainCamera = mainCamera;
+			foreach (var layer in _layerDict.Values)
+			{
+				_mainCamera.AddOverlayCamera(layer.GetCamera());
+			}
+		}
+
 		public void CreateLayers()
 		{
 			_layerCert = AssetMgr.LoadAsset<GameObject>(UIConst.LayerPath);
@@ -39,6 +57,10 @@ namespace KDGame.UI
 				layer.name = Enum.GetName(typeof(UIDepth), uiDepth) ?? "Unknown";
 				var uiLayer = layer.GetComponent<UILayer>();
 				uiLayer.InitDepth((int) uiDepth);
+				if (_mainCamera)
+				{
+					_mainCamera.AddOverlayCamera(uiLayer.GetCamera());
+				}
 
 				_layerDict[uiDepth] = uiLayer;
 			}

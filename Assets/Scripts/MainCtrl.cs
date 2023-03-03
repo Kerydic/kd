@@ -15,6 +15,13 @@ namespace KDGame
 
 		public static Transform Trans => Instance.transform;
 
+		public MainCamera MainCamera
+		{
+			get => _mainCamera;
+			set => _mainCamera = value;
+		}
+		[SerializeField] private MainCamera _mainCamera;
+
 		protected override void OnAwake()
 		{
 			base.OnAwake();
@@ -58,6 +65,7 @@ namespace KDGame
 		// 游戏开始
 		private void OnLaunch()
 		{
+			UIMgr.Instance.SetMainCamera(_mainCamera);
 			UIMgr.Instance.CreateLayers();
 			Destroy(GameObject.Find("Splash"));
 

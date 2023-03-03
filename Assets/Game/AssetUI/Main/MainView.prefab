@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7145270164465880931}
   - component: {fileID: 7754090801285651562}
   - component: {fileID: 4173319070723106850}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: RTBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -28,6 +28,7 @@ RectTransform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2308466056836439659}
   m_RootOrder: 0
@@ -88,7 +89,7 @@ GameObject:
   - component: {fileID: 3445584330784309091}
   - component: {fileID: 3815644118924819023}
   - component: {fileID: 6291607463924507779}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: MainView
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105,6 +106,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2308466056836439659}
   m_Father: {fileID: 0}
@@ -135,8 +137,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47fb38fd06fce411f92ed4f3dbcc8ceb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  holder: []
   viewID: 0
+  holder: []
 --- !u!1 &8762826601694663689
 GameObject:
   m_ObjectHideFlags: 0
@@ -146,7 +148,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2308466056836439659}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: UIArea
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -163,6 +165,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7145270164465880931}
   m_Father: {fileID: 3445584330784309091}

@@ -2,31 +2,33 @@
 {
 	public static class UIConst
 	{
-		public const string LayerPath = "AssetUI/Utils/UILayer";
 	}
 
 	public static class Forms
 	{
-		public static readonly ViewForm GizmosView = new ViewForm("AssetUI/Utils/GizmosView", UIDepth.Util);
-		public static readonly ViewForm LaunchView = new ViewForm("AssetUI/Launch/LaunchView", UIDepth.Content);
-		public static readonly ViewForm MainView = new ViewForm("AssetUI/Main/MainView", UIDepth.Content);
+		public static readonly ViewForm GizmosView = new ViewForm("AssetUI/Utils/GizmosView", UILayerNames.Util);
+		public static readonly ViewForm LaunchView = new ViewForm("AssetUI/Launch/LaunchView", UILayerNames.Content);
+		public static readonly ViewForm MainView = new ViewForm("AssetUI/Main/MainView", UILayerNames.Content);
 	}
 
-	public enum UIDepth
+	public static class UILayerNames
 	{
-		Content = 100,
-		Util = 999,
+		public const string Util = "Util";
+		public const string Popup = "Popup";
+		public const string Content = "Content";
+
+		public static readonly string[] Layers = { Util, Popup, Content };
 	}
 
 	public struct ViewForm
 	{
 		public string Path;
-		public UIDepth Depth;
+		public string LayerName;
 
-		public ViewForm(string path, UIDepth depth)
+		public ViewForm(string path, string layerName)
 		{
 			Path = path;
-			Depth = depth;
+			LayerName = layerName;
 		}
 	}
 }

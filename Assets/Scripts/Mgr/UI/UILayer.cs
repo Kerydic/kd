@@ -1,26 +1,33 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KDGame.UI
 {
 	public class UILayer : MonoBehaviour
 	{
-		[SerializeField] private Camera _camera;
-		[SerializeField] private Canvas _canvas;
+		private Canvas _canvas;
 
-		public void InitDepth(int depth)
+		private void Awake()
 		{
-			_camera.depth = depth;
+			_canvas = gameObject.AddComponent<Canvas>();
+			_canvas.renderMode = RenderMode.ScreenSpaceCamera;
+			var canvasScaler = gameObject.AddComponent<CanvasScaler>();
+			canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+			canvasScaler.referenceResolution = new Vector2(1920, 1080);
+			canvasScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+			gameObject.AddComponent<GraphicRaycaster>();
+		}
+
+		public void Setup(Camera camera, string layerName)
+		{
+			_canvas.worldCamera = camera;
+			_canvas.sortingLayerName = layerName;
 		}
 
 		public Transform GetRoot()
 		{
 			return _canvas.transform;
-		}
-
-		public Camera GetCamera()
-		{
-			return _camera;
 		}
 	}
 }

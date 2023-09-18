@@ -4,6 +4,7 @@ using KDGame.Base;
 using KDGame.Mgr;
 using KDGame.Util;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace KDGame.UI
 {
@@ -11,14 +12,14 @@ namespace KDGame.UI
 	{
 		private Transform _uiRoot;
 		private MainCamera _mainCamera;
-		private Dictionary<UIDepth, UILayer> _layerDict;
+		private Dictionary<string, UILayer> _layerDict;
 		private KDLog _logger;
 
 		protected override void OnAwake()
 		{
 			base.OnAwake();
 			_uiRoot = GameObject.Find("UIRoot").transform;
-			_layerDict = new Dictionary<UIDepth, UILayer>();
+			_layerDict = new Dictionary<string, UILayer>();
 			_logger = new KDLog("UIMgr", "FF0000");
 		}
 
@@ -28,7 +29,32 @@ namespace KDGame.UI
 			CreateLayers();
 		}
 
-		private LoadCert _layerCert;
+		private Camera _uiCamera;
+		private UniversalAdditionalCameraData _uiCameraData;
+
+		private void CreateUICamera()
+		{
+			if (_uiCamera != null) return;
+			var uiGo = new GameObject("UICamera");
+			uiGo.transform.SetParent(_uiRoot);
+			uiGo.layer = LayerMask.NameToLayer("UI");
+			_uiCamera = uiGo.AddComponent<Camera>();
+			_uiCameraData = uiGo.AddComponent<UniversalAdditionalCameraData>();
+			_uiCameraData.renderType = CameraRenderType.Overlay;
+			_uiCamera.orthographic = true;
+			// 只显示UI层
+			// 常用指令：
+			// camera.cullingMask = ~(1 << x); 除x外的所有层
+			// camera.cullingMask &= ~(1 << x); 关闭x层
+			// camera.cullingMask != (1 << x); 打开x层
+			// camera.cullingMask = 1 << x + 1 << y + 1 << z; 只显示xyz层
+			_uiCamera.cullingMask |= 1 << LayerMask.NameToLayer("UI");
+			_uiCamera.cullingMask |= 1 << LayerMask.NameToLayer("Default");
+			if (_mainCamera)
+			{
+				_mainCamera.AddOverlayCamera(_uiCamera);
+			}
+		}
 
 		/// <summary>
 		/// 设置当前的主相机，并将所有UI层全部移到其CameraStack中
@@ -40,89 +66,82 @@ namespace KDGame.UI
 			{
 				_mainCamera.ClearCameraStack();
 			}
+
 			_mainCamera = mainCamera;
-			foreach (var layer in _layerDict.Values)
+			if (_uiCamera)
 			{
-				_mainCamera.AddOverlayCamera(layer.GetCamera());
+				_mainCamera.AddOverlayCamera(_uiCamera);
 			}
 		}
 
 		public void CreateLayers()
 		{
-			_layerCert = AssetMgr.LoadAsset<GameObject>(UIConst.LayerPath);
-			foreach (UIDepth uiDepth in Enum.GetValues(typeof(UIDepth)))
+			CreateUICamera();
+			foreach (var layerName in UILayerNames.Layers)
 			{
-				_logger.Info($"Create UI layer, name: {uiDepth}, depth: {(int) uiDepth}");
-				var layer = GameObject.Instantiate(_layerCert.Objs[0] as GameObject, _uiRoot);
-				layer.name = Enum.GetName(typeof(UIDepth), uiDepth) ?? "Unknown";
-				var uiLayer = layer.GetComponent<UILayer>();
-				uiLayer.InitDepth((int) uiDepth);
-				if (_mainCamera)
-				{
-					_mainCamera.AddOverlayCamera(uiLayer.GetCamera());
-				}
-
-				_layerDict[uiDepth] = uiLayer;
+				_logger.Info($"Create UI layer, name: {layerName}, layer: {layerName}");
+				var layer = new GameObject(layerName);
+				layer.layer = LayerMask.NameToLayer("UI");
+				layer.transform.SetParent(_uiRoot);
+				var uiLayer = layer.AddComponent<UILayer>();
+				_layerDict[layerName] = uiLayer;
+				uiLayer.Setup(_uiCamera, layerName);
 			}
 		}
 
 		public void DestroyLayers()
 		{
-			// TODO 清除所有当前显示界面的资源引用
 			foreach (var kv in _layerDict)
 			{
-				Debug.Log($"Destroy UI Layer, depth: {(int) kv.Key}, name: {kv.Value.name}");
-				GameObject.Destroy(kv.Value);
+				_logger.Info($"Destroy UI Layer, layer: {kv.Key}, name: {kv.Value.name}");
+				Destroy(kv.Value.gameObject);
 			}
 
 			_layerDict.Clear();
-			if (_layerCert != null)
-			{
-				_layerCert.Unload();
-				_layerCert = null;
-			}
 		}
 
 		#region View Show
-
-		public void ShowView(ViewForm vf, Action<UIView> onShowEnd = null)
-		{
-			ShowViewInternal(vf.Path, vf.Depth, onShowEnd);
-		}
 
 		/// <summary>
 		/// 使用指定的深度显示UI界面
 		/// </summary>
 		/// <param name="vf">页面参数</param>
-		/// <param name="depth">期望的页面深度</param>
 		/// <param name="onShowEnd">页面显示结束回调</param>
-		public void ShowView(ViewForm vf, UIDepth depth, Action<UIView> onShowEnd = null)
+		/// <param name="vParams">传给View的参数</param>
+		public void ShowView(ViewForm vf, Action<UIView> onShowEnd = null, params object[] vParams)
 		{
-			ShowViewInternal(vf.Path, depth, onShowEnd);
+			var vid = ShowViewInternal(vf.Path, vf.LayerName, vParams);
+			if (vid <= 0) return;
+
+			if (!_showingForms.ContainsKey(vf))
+				_showingForms[vf] = new List<ulong>();
+			_showingForms[vf].Add(vid);
+			onShowEnd?.Invoke(_showingViews[vid].View);
 		}
 
 		private ulong _uniqViewID = 0;
 		private Dictionary<ulong, ShowingUIView> _showingViews = new Dictionary<ulong, ShowingUIView>();
+		private Dictionary<ViewForm, List<ulong>> _showingForms = new Dictionary<ViewForm, List<ulong>>();
 
-		private void ShowViewInternal(string assetPath, UIDepth depth, Action<UIView> onShowEnd = null)
+		private ulong ShowViewInternal(string assetPath, string layerName, params object[] vParams)
 		{
 			LoadCert cert = AssetMgr.LoadAsset<GameObject>(assetPath);
 			if (cert.Status != LoadStatus.Success)
 			{
 				_logger.Error("ShowView fail, due to LoadAssetFail.");
-				return;
+				return 0;
 			}
 
-			if (!_layerDict.TryGetValue(depth, out UILayer layer))
+			if (!_layerDict.TryGetValue(layerName, out UILayer layer))
 			{
 				_logger.Error("ShowView fail, due to invalid UILayer.");
 				cert.Unload();
-				return;
+				return 0;
 			}
 
 			ulong viewID = ++_uniqViewID;
 
-			GameObject viewGo = GameObject.Instantiate((GameObject) cert.Objs[0], layer.GetRoot());
+			GameObject viewGo = GameObject.Instantiate((GameObject)cert.Objs[0], layer.GetRoot());
 			UIView view = viewGo.GetComponent<UIView>();
 			view.OnCreateEnd(viewID);
 
@@ -130,17 +149,46 @@ namespace KDGame.UI
 			curr.ID = viewID;
 			curr.View = view;
 			curr.AssetCert = cert;
+			curr.Params = vParams;
 			_showingViews[curr.ID] = curr;
 
-			onShowEnd?.Invoke(view);
+			return viewID;
 		}
 
 		#endregion
 
 		#region View Hide/Destroy
 
+		/// <summary>
+		/// 隐藏该ViewForm的对应数量页面
+		/// </summary>
+		/// <param name="vf"></param>
+		/// <param name="count">删除多少个，若不填或小于0，全部删除</param>
+		public void HideView(ViewForm vf, int count = -1)
+		{
+			if (!_showingForms.TryGetValue(vf, out List<ulong> vids))
+			{
+				_logger.Error("No corresponding view found!");
+				return;
+			}
+
+			var vCount = vids.Count;
+			if (count < 0) count = vCount;
+			for (var i = 1; i <= Mathf.Min(vCount, count); ++i)
+			{
+				var index = vCount - i + 1;
+				DestroyView(vids[index]);
+				vids.RemoveAt(index);
+			}
+		}
+
+		/// <summary>
+		/// 精确隐藏某个ID的页面
+		/// </summary>
+		/// <param name="viewID"></param>
 		public void HideView(ulong viewID)
 		{
+			DestroyView(viewID);
 		}
 
 		private void DestroyView(ulong viewID)
@@ -162,5 +210,6 @@ namespace KDGame.UI
 		public ulong ID;
 		public UIView View;
 		public LoadCert AssetCert;
+		public object[] Params;
 	}
 }

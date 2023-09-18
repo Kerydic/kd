@@ -151,6 +151,7 @@ namespace KDGame.UI
 			curr.AssetCert = cert;
 			curr.Params = vParams;
 			_showingViews[curr.ID] = curr;
+			view.OnShow();
 
 			return viewID;
 		}
@@ -195,6 +196,7 @@ namespace KDGame.UI
 		{
 			if (_showingViews.TryGetValue(viewID, out ShowingUIView showing))
 			{
+				showing.View.OnHide();
 				showing.View.OnViewDestroy();
 				GameObject.Destroy(showing.View.gameObject);
 				showing.AssetCert.Unload();

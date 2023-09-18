@@ -16,7 +16,7 @@ namespace KDGame.Base
 
 		~Module()
 		{
-			Debug.Log(Name + "Ctrl Destroy");
+			// Debug.Log(Name + "Ctrl Destroy");
 		}
 
 		/// <summary>

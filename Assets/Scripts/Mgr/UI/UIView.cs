@@ -6,41 +6,38 @@ using UnityEngine;
 namespace KDGame.UI
 {
 	public class UIView : LogicEventSender
-    {
-	    [ReadOnly]
-	    public ulong viewID = 0;
-        public List<GameObject> holder = new List<GameObject>();
+	{
+		[ReadOnly] public ulong viewID = 0;
+		public List<GameObject> holder = new List<GameObject>();
 
-        public void OnCreateEnd(ulong viewID)
-        {
-	        this.viewID = viewID;
-	        foreach (var trans in gameObject.GetComponentsInChildren<Transform>(true))
-	        {
-		        trans.gameObject.layer = LayerMask.NameToLayer("UI");
-	        }
-        }
+		public void OnCreateEnd(ulong viewID)
+		{
+			this.viewID = viewID;
+			foreach (var trans in gameObject.GetComponentsInChildren<Transform>(true))
+			{
+				trans.gameObject.layer = LayerMask.NameToLayer("UI");
+			}
+		}
 
-        public void OnViewDestroy()
-        {
-	        
-        }
+		public void OnViewDestroy()
+		{
+		}
 
-        protected virtual void OnShow()
-        {
-	        
-        }
+		internal virtual void OnShow()
+		{
+		}
 
-        protected virtual void OnHide()
-        {
-        }
+		internal virtual void OnHide()
+		{
+		}
 
-        private void Start()
-        {
-            Debug.Log("UI showed: " + gameObject.name);
-            foreach (var o in holder)
-            {
-                Debug.Log(o.name);
-            }
-        }
-    }
+		private void Start()
+		{
+			Debug.Log("UI showed: " + gameObject.name);
+			foreach (var o in holder)
+			{
+				Debug.Log(o.name);
+			}
+		}
+	}
 }

@@ -3,7 +3,8 @@ using KDGame.UI;
 
 namespace KDGame.Module
 {
-	public class GizmosCtrl : LogicCtrl
+	[Module("Gizmos")]
+	public class GizmosModule : Base.Module
 	{
 		protected override void OnEnter()
 		{
@@ -12,7 +13,6 @@ namespace KDGame.Module
 
 		protected override void OnQuit()
 		{
-			
 		}
 	}
 }

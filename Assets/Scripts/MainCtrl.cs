@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using KDGame.Base;
 using KDGame.Mgr;
-using KDGame.Module;
 using KDGame.UI;
 using UnityEngine;
 
@@ -20,6 +19,7 @@ namespace KDGame
 			get => _mainCamera;
 			set => _mainCamera = value;
 		}
+
 		[SerializeField] private MainCamera _mainCamera;
 
 		protected override void OnAwake()
@@ -60,25 +60,45 @@ namespace KDGame
 
 		#region Main Logic
 
-		private HashSet<LogicCtrl> _ctrlSet;
+		private Dictionary<string, Base.Module> _moduleDict;
+		private Dictionary<Type, string> _moduleTypeNameDict;
 
 		// 游戏开始
 		private void OnLaunch()
 		{
 			UIMgr.Instance.SetMainCamera(_mainCamera);
 			UIMgr.Instance.CreateLayers();
+			CreateModules();
 			Destroy(GameObject.Find("Splash"));
+		}
 
-			_ctrlSet = new HashSet<LogicCtrl>();
-			_ctrlSet.Add(new LaunchCtrl());
-			_ctrlSet.Add(new GizmosCtrl());
+		private void CreateModules()
+		{
+			_moduleDict = new Dictionary<string, Base.Module>();
+			_moduleTypeNameDict = new Dictionary<Type, string>();
+			var assembly = Assembly.GetAssembly(typeof(KDGame.Base.Module));
+			foreach (var type in assembly.GetTypes())
+			{
+				var moduleAttr = type.GetCustomAttribute<ModuleAttribute>();
+				if (moduleAttr == null) continue;
+				var mName = moduleAttr.GetName();
+				_moduleDict[mName] = Activator.CreateInstance(type) as Base.Module;
+				_moduleTypeNameDict[type] = mName;
+			}
+		}
+
+		public T GetModule<T>() where T : Base.Module
+		{
+			var mName = _moduleTypeNameDict?[typeof(T)];
+			if (string.IsNullOrEmpty(mName)) return null;
+			return _moduleDict?[mName] as T;
 		}
 
 		private void OnRelaunch()
 		{
-			foreach (var ctrl in _ctrlSet)
+			foreach (var ctrl in _moduleDict)
 			{
-				ctrl.ForceQuit();
+				ctrl.Value.Quit();
 			}
 		}
 

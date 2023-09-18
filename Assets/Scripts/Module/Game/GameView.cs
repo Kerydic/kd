@@ -2,7 +2,7 @@
 
 namespace KDGame.View
 {
-	public class MainView : UIView
+	public class GameView : UIView
 	{
 	}
 }

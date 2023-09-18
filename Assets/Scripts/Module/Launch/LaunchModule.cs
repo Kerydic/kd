@@ -4,12 +4,14 @@ using KDGame.UI;
 
 namespace KDGame.Module
 {
-	public class LaunchCtrl : LogicCtrl
+	[Module("Launch")]
+	public class LaunchModule : Base.Module
 	{
 		private LaunchView _view;
-		
+
 		protected override void OnEnter()
 		{
+			base.OnEnter();
 			UIMgr.Instance.ShowView(Forms.LaunchView, view =>
 			{
 				_view = view as LaunchView;
@@ -26,8 +28,15 @@ namespace KDGame.Module
 					UIMgr.Instance.HideView(_view.viewID);
 					_view = null;
 				}
-				// 结束Launch逻辑，退出
+
+				Quit();
 			}
+		}
+
+		protected override void OnQuit()
+		{
+			base.OnQuit();
+			GetModule<GameModule>().ShowMain();
 		}
 	}
 }

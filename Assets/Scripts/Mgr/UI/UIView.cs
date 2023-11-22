@@ -23,11 +23,11 @@ namespace KDGame.UI
 		{
 		}
 
-		internal virtual void OnShow()
+		public virtual void OnShow()
 		{
 		}
 
-		internal virtual void OnHide()
+		public virtual void OnHide()
 		{
 		}
 

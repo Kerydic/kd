@@ -35,7 +35,6 @@ namespace KDGame
 			AddMgr<HotUpdMgr>();
 			AddMgr<AssetMgr>();
 			AddMgr<UIMgr>();
-			HotUpdMgr.Instance.RunHotUpd();
 			// Start game logic
 			OnLaunch();
 		}
@@ -70,6 +69,7 @@ namespace KDGame
 		{
 			UIMgr.Instance.SetMainCamera(_mainCamera);
 			UIMgr.Instance.CreateLayers();
+			HotUpdMgr.Instance.RunHotUpd();
 			CreateModules();
 			Destroy(GameObject.Find("Splash"));
 		}
@@ -78,14 +78,16 @@ namespace KDGame
 		{
 			_moduleDict = new Dictionary<string, Base.Module>();
 			_moduleTypeNameDict = new Dictionary<Type, string>();
-			var assembly = Assembly.GetAssembly(typeof(KDGame.Base.Module));
-			foreach (var type in assembly.GetTypes())
+			foreach (var assembly in HotUpdMgr.Instance.GetLoadedAssemblies())
 			{
-				var moduleAttr = type.GetCustomAttribute<ModuleAttribute>();
-				if (moduleAttr == null) continue;
-				var mName = moduleAttr.GetName();
-				_moduleDict[mName] = Activator.CreateInstance(type) as Base.Module;
-				_moduleTypeNameDict[type] = mName;
+				foreach (var type in assembly.GetTypes())
+				{
+					var moduleAttr = type.GetCustomAttribute<ModuleAttribute>();
+					if (moduleAttr == null) continue;
+					var mName = moduleAttr.GetName();
+					_moduleDict[mName] = Activator.CreateInstance(type) as Base.Module;
+					_moduleTypeNameDict[type] = mName;
+				}
 			}
 		}
 

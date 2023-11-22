@@ -9,7 +9,7 @@ namespace KDGame.Module
 	{
 		[SerializeField] private Button _btnStart;
 
-		internal override void OnShow()
+		public override void OnShow()
 		{
 			if (_btnStart != null)
 			{

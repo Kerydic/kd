@@ -32,8 +32,10 @@ namespace KDGame
 		{
 			SetGameFrame(60);
 			// Add basic Mgr
+			AddMgr<HotUpdMgr>();
 			AddMgr<AssetMgr>();
 			AddMgr<UIMgr>();
+			HotUpdMgr.Instance.RunHotUpd();
 			// Start game logic
 			OnLaunch();
 		}

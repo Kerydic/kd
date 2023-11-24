@@ -1,5 +1,5 @@
 using KDGame.Base;
-using KDGame.PB;
+using KDGame.Const;
 using KDGame.UI;
 
 namespace KDGame.Module

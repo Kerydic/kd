@@ -1,4 +1,3 @@
-using KDGame.PB;
 using UnityEngine;
 
 namespace KDGame.Base
@@ -17,7 +16,7 @@ namespace KDGame.Base
 			_center -= listener;
 		}
 
-		protected void Invoke(LogicEvent eventID, params object[] args)
+		protected void Invoke(int eventID, params object[] args)
 		{
 			_center?.Invoke(new LogicEventArgs(eventID, args));
 		}

@@ -2,18 +2,7 @@ syntax = "proto3";
 
 package KDGame.PB;
 
-enum EnvName {
+enum GameEnv {
     DEBUG   = 0;
     RELEASE = 1;
-}
-
-enum Platform {
-    UNKNOWN = 0;
-    ANDROID = 1;
-    IOS     = 2;
-}
-
-message RuntimeInfo {
-    EnvName  env      = 1;
-    Platform platform = 2;
 }

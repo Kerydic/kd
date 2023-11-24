@@ -1,14 +1,13 @@
 using System;
-using KDGame.PB;
 
 namespace KDGame.Base
 {
 	public class LogicEventArgs : EventArgs
 	{
-		public LogicEvent EventID;
+		public int EventID;
 		public object[] EventArgs;
 
-		public LogicEventArgs(LogicEvent id, object[] args)
+		public LogicEventArgs(int id, object[] args)
 		{
 			this.EventID = id;
 			this.EventArgs = args;

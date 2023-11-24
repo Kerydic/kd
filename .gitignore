@@ -9,6 +9,8 @@
 
 # HybridCLR
 HybridCLRData/
+Assets/HybridCLRGenerate/
+Assets/HybridCLRGenerate.meta
 
 # Visual Studio cache directory
 **/.vs/

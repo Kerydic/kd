@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using System.IO;
+using KDGame.Editor.Utils;
 using KDGame.Util;
 using UnityEngine;
 
@@ -43,7 +44,7 @@ namespace KDGame.Editor.AssetBundle
 			// TODO 最简单的以路径打Bundle
 			foreach (string path in assetPaths)
 			{
-				if (!ABUtil.IsValidAsset(path))
+				if (!AssetUtil.IsValidAsset(path))
 				{
 					continue;
 				}

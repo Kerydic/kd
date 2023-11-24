@@ -18,7 +18,7 @@ namespace KDGame.Mgr
 #if UNITY_EDITOR
 			_logic = new AssetEditorLogic();
 #else
-			_logic = new AssetBuildMgr();
+			_logic = new AssetBuildLogic();
 #endif
 		}
 

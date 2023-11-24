@@ -6,5 +6,6 @@ namespace KDGame.Editor
 		public const string Utils = "Utils/";
 		public const string AssetBundle = Utils + "AssetBundle/";
 		public const string Serialize = Utils + "Serialize/";
+		public const string CICD = Utils + "CICD/";
 	}
 }

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using KDGame.Util;
@@ -92,3 +93,4 @@ namespace KDGame.Mgr.Asset
 		}
 	}
 }
+#endif

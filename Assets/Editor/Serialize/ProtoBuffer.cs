@@ -22,6 +22,11 @@ namespace KDGame.Editor.Serialize
 				return;
 			}
 
+			if (!Directory.Exists(DstPath))
+			{
+				AssetDatabase.CreateFolder(Path.GetDirectoryName(DstPath), Path.GetFileName(DstPath));
+			}
+
 			foreach (var file in Directory.GetFiles(Path.Combine(Environment.CurrentDirectory, SrcPath)))
 			{
 				if (Path.GetExtension(file) != ".proto" || !IsNeedGen(Path.GetFileNameWithoutExtension(file)))

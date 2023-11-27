@@ -12,6 +12,12 @@ HybridCLRData/
 Assets/HybridCLRGenerate/
 Assets/HybridCLRGenerate.meta
 
+# AssetBundles
+Assets/AssetBundles
+Assets/AssetBundles.meta
+Assets/DllTemp
+Assets/DllTemp.meta
+
 # Visual Studio cache directory
 **/.vs/
 

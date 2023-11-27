@@ -5,31 +5,32 @@ namespace KDGame.Util
 {
 	public static class ABUtil
 	{
-		public const string UIAssetPathPrefix = "Assets/AssetUI";
-		public const string SceneObjPathPrefix = "Assets/AssetScene";
+		public const string UIAssetPathPrefix = "Assets/Game/AssetUI";
+		public const string SceneObjPathPrefix = "Assets/Game/AssetScene";
 
-		private static CultureInfo _enCulture = null;
+		public const string HotUpdDllABName = "dll_hotupd";
+		public const string MetadataDllABName = "dll_metadata";
+		
+		public const string ManifestPath = "assetbundles";
+		public const string ManifestExt = ".manifest";
 
 		public static string GetBundleByPath(string path)
 		{
 			if (path.StartsWith(UIAssetPathPrefix))
 			{
-				path.Replace(UIAssetPathPrefix, "ui_");
+				path = "ui_" + path.Substring(UIAssetPathPrefix.Length + 1);
 			}
 			else if (path.StartsWith(SceneObjPathPrefix))
 			{
-				path.Replace(SceneObjPathPrefix, "scene_");
+				path = "scene_" + path.Substring(SceneObjPathPrefix.Length + 1);
 			}
 			else
 			{
-				return null;
+				return "";
 			}
 
-			path.Split('/');
-
-			_enCulture ??= new CultureInfo("en-US");
-
-			return string.Join("_", path.Split('/')).ToLower(_enCulture);
+			// TODO 拓展资源分bundle策略
+			return ComUtil.Str2Lower(path.Split('/')[0]);
 		}
 	}
 }

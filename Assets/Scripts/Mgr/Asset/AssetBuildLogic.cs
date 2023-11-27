@@ -11,7 +11,6 @@ namespace KDGame.Mgr.Asset
 {
 	internal class AssetBuildLogic : IAssetLogic
 	{
-		private const string ManifestPath = "assetbundles";
 		private const string ManifestName = "AssetBundleManifest";
 
 		// 资源引用归零后多久卸载
@@ -46,7 +45,7 @@ namespace KDGame.Mgr.Asset
 		/// </summary>
 		private void InitManifest()
 		{
-			AssetBundle ab = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, ManifestPath));
+			AssetBundle ab = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, ABUtil.ManifestPath));
 			_manifest = ab.LoadAsset<AssetBundleManifest>(ManifestName);
 			ab.Unload(true);
 		}

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Linq;
+using System.Text.RegularExpressions;
 using HybridCLR;
 using KDGame.Base;
+using KDGame.Util;
 using UnityEngine;
 
 // 为了避免主Assembly引用到热更新Assembly，需要关闭GameHotUpd.asmdef中AutoReferenced选项，导致主Assembly无法引用命名空间
@@ -47,8 +49,8 @@ namespace KDGame.Mgr
 			// Editor下无需加载，直接查找获得HotUpdate程序集
 			var hotUpdateAss = System.AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == dllName);
 #else
-			// TODO 换成从AssetBundle加载
-			var bytes = File.ReadAllBytes($"{Application.streamingAssetsPath}/{dllName}.dll.bytes");
+			var hotUpdAb = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, ABUtil.HotUpdDllABName));
+			var bytes = hotUpdAb.LoadAsset<TextAsset>(dllName + ".dll.bytes").bytes;
 			var hotUpdateAss = Assembly.Load(bytes);
 #endif
 			return hotUpdateAss;
@@ -58,33 +60,30 @@ namespace KDGame.Mgr
 		private static void LoadMetadataForAOTAssembly()
 		{
 #if !UNITY_EDITOR
+			var metadataAb = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, ABUtil.MetadataDllABName));
 			foreach (var dllName in GetMetadataDllNames())
 			{
-				// TODO 换成从AssetBundle加载
-				var bytes = File.ReadAllBytes($"{Application.streamingAssetsPath}/{dllName}.dll.bytes");
+				var bytes = metadataAb.LoadAsset<TextAsset>(dllName + ".bytes").bytes;
 				var err = HybridCLR.RuntimeApi.LoadMetadataForAOTAssembly(bytes, HomologousImageMode.SuperSet);
 				Debug.Log($"LoadMetadataForAOTAssembly:{dllName}, result:{err}");
 			}
 #endif
 		}
 
-		// 解析HybridCLR生成的文件，并获取需要补充元数据的Dll名
-		public static string[] GetMetadataDllNames()
-		{
-			// 用反射，防止没有生成报错
-			var aotGenRefClass = AppDomain.CurrentDomain.GetAssemblies()
-				.First(a => a.GetName().Name == "Assembly-CSharp").GetType("AOTGenericReferences");
-			if (aotGenRefClass == null)
-			{
-				Debug.LogError("Class AOTGenericReferences is not found! Please run HybridCLR/Generate All first!");
-				return new string[] { };
-			}
+		public const string MetadataDllConfig = "AOTMetadataGen.bytes";
 
-			var nameList = aotGenRefClass.GetField("PatchedAOTAssemblyList").GetValue(null) as List<string>;
-			return nameList.ToArray();
+		// 解析HybridCLR生成的文件，并获取需要补充元数据的Dll名
+		// 注意拿到的文件带后缀
+		public static List<string> GetMetadataDllNames()
+		{
+			var path = $"{Application.streamingAssetsPath}/{MetadataDllConfig}";
+			var names = new List<string>();
+			foreach (Match match in Regex.Matches(File.ReadAllText(path), "\"(.+)\""))
+				names.Add(match.Groups[1].Value);
+			return names;
 		}
 
-		public Assembly[] GetLoadedAssemblies()
+		public IEnumerable<Assembly> GetLoadedAssemblies()
 		{
 			return _loadedAssemblies.ToArray();
 		}

@@ -7,6 +7,12 @@
       "dependencies": {},
       "hash": "febff1c658fa9d76726f3aa25f26ec6d35c1e2e6"
     },
+    "com.google.android.appbundle": {
+      "version": "file:Tgz/com.google.android.appbundle-1.9.0.tgz",
+      "depth": 0,
+      "source": "local-tarball",
+      "dependencies": {}
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,

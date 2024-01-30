@@ -6,6 +6,7 @@
 [Bb]uilds/
 [Ll]ogs/
 [Uu]serSettings/
+ProjectSettings/boot.config
 
 # HybridCLR
 HybridCLRData/

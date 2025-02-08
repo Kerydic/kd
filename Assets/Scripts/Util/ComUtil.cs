@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using KDGame.Lib;
+using UnityEngine.Device;
 
 namespace KDGame.Util
 {
@@ -50,6 +51,20 @@ namespace KDGame.Util
 			{
 				throw new Exception("Get MD5 fail, error:" + e.Message);
 			}
+		}
+
+		public static string GetStreamingAssetsUrl()
+		{
+#if UNITY_ANDROID
+			return Application.streamingAssetsPath;
+#else
+			return "file://" + Application.streamingAssetsPath;
+#endif
+		}
+
+		public static string GetPersistentDataUrl()
+		{
+			return "file://" + Application.persistentDataPath;
 		}
 	}
 }

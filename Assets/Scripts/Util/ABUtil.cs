@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using UnityEditor;
+using UnityEngine;
 
 namespace KDGame.Util
 {
@@ -13,6 +14,15 @@ namespace KDGame.Util
 		
 		public const string ManifestPath = "assetbundles";
 		public const string ManifestExt = ".manifest";
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns>当前是否正在使用AssetBundle</returns>
+		public static bool IsUsingAB()
+		{
+			return !Application.isEditor;
+		}
 
 		public static string GetBundleByPath(string path)
 		{
@@ -31,6 +41,12 @@ namespace KDGame.Util
 
 			// TODO 拓展资源分bundle策略
 			return ComUtil.Str2Lower(path.Split('/')[0]);
+		}
+
+		public static string GetManifestByBundle(string bundleName)
+		{
+			// TODO 根据Bundle名获取manifest
+			return ManifestPath;
 		}
 	}
 }

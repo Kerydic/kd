@@ -50,8 +50,11 @@ namespace KDGame.Editor.CI
 			PlayerSettings.stripEngineCode = false;
 			AssetDatabase.SaveAssets();
 			CIHybridCLRUtil.OnPreBuild();
-			CIABUtil.BuildAllAssetBundles(param.Target);
-			// TODO 异常依赖检测
+			// 打AssetBundle并移动到StreamingAssets
+			var libPath = CIABUtil.BuildAllAssetBundles(param.Target);
+			var dstPath = Path.Combine(Application.streamingAssetsPath, "AssetBundles");
+			if (Directory.Exists(dstPath)) Directory.Delete(dstPath, true);
+			Directory.Move(libPath, Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
 			// 构建
 			BuildPlayer(param);
 			Application.logMessageReceivedThreaded -= CaptureLogThread;
@@ -123,13 +126,13 @@ namespace KDGame.Editor.CI
 
 		private static void BuildAAB(CIParam param, BuildOptions options)
 		{
-			#if UNITY_ANDROID
+#if UNITY_ANDROID
 			var buildPlayerOptions = AndroidBuildHelper.CreateBuildPlayerOptions(param.OutputPath);
 			buildPlayerOptions.options = options;
 			var assetPackConfig = new AssetPackConfig();
 			assetPackConfig.SplitBaseModuleAssets = true;
 			Bundletool.BuildBundle(buildPlayerOptions, assetPackConfig);
-			#endif
+#endif
 		}
 	}
 

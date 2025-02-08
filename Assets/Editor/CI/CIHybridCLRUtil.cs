@@ -16,7 +16,8 @@ namespace KDGame.Editor.CI
 		{
 			// 检查是否需要安装HybridCLR
 			var controller = new InstallerController();
-			if (!controller.HasInstalledHybridCLR())
+			if (!controller.HasInstalledHybridCLR() ||
+			    !controller.InstalledLibil2cppVersion.Equals(controller.PackageVersion))
 			{
 				Debug.Log("Start install default HybridCLR...");
 				controller.InstallDefaultHybridCLR();
@@ -49,9 +50,9 @@ namespace KDGame.Editor.CI
 			Debug.Log("HybridCLR.GenerateAll success!");
 
 			var buildTarget = EditorUserBuildSettings.activeBuildTarget;
-			// 移动热更新Dll到StreamingAssets
+			// 移动热更新Dll到特定文件夹供打AssetBundle
 			MoveHotUpdDll(buildTarget);
-			// 移动补充元数据Dll到StreamingAssets
+			// 移动补充元数据Dll到特定文件夹供打AssetBundle
 			MoveMetadataDll(buildTarget);
 		}
 

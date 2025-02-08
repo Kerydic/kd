@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using UnityEditor;
 using System.IO;
-using System.Text;
 using KDGame.Editor.Utils;
+using KDGame.Mgr.Bundle;
 using KDGame.Util;
 using UnityEngine;
 
@@ -11,7 +11,12 @@ namespace KDGame.Editor.CI
 {
 	public static class CIABUtil
 	{
-		public static void BuildAllAssetBundles(BuildTarget target)
+		/// <summary>
+		/// 返回AssetBundle的存储文件夹路径
+		/// </summary>
+		/// <param name="target"></param>
+		/// <returns></returns>
+		public static string BuildAllAssetBundles(BuildTarget target)
 		{
 			SetAllAssetBundleNames();
 			var libPath = Path.Combine(CIConst.ABLibPath, target.ToString());
@@ -22,30 +27,26 @@ namespace KDGame.Editor.CI
 			var manifest = BuildPipeline.BuildAssetBundles(libPath, BuildAssetBundleOptions.ChunkBasedCompression, target);
 			// 重命名Manifest文件
 			RenameManifestAB(libPath, target);
-			// 生成文件清淡文本文件
-			GenManifestTxt(manifest, libPath);
+			// 给生成的AB添加Hash后缀，并生成清单文本文件，将他们移动到特殊文件夹
+			var signedPath =  libPath + "_Signed";
+			if (Directory.Exists(signedPath))
+				Directory.Delete(signedPath, true);
+			Directory.CreateDirectory(signedPath);
+			AddHashSuffixAndGenManifestTxt(manifest, libPath, signedPath);
 			AssetDatabase.Refresh();
+			// TODO 异常依赖检测
 			Debug.Log("Build all assetBundle end!");
+			return signedPath;
 		}
 
-		[MenuItem(EditorMenuConst.AssetBundle + "Build Curr", false, 1)]
-		public static void BuildCurrAB()
+		[MenuItem(EditorMenuConst.AssetBundle + "Build Active Target", false, 1)]
+		public static void BuildActiveTarget()
 		{
 			BuildAllAssetBundles(EditorUserBuildSettings.activeBuildTarget);
 		}
 
-		[MenuItem(EditorMenuConst.AssetBundle + "Build Android", false, 2)]
-		public static void BuildAndroidAB()
-		{
-			BuildAllAssetBundles(BuildTarget.Android);
-		}
-
-		[MenuItem(EditorMenuConst.AssetBundle + "Build iOS", false, 3)]
-		public static void BuildIosAB()
-		{
-			BuildAllAssetBundles(BuildTarget.iOS);
-		}
-
+		#region AB NAME
+		[MenuItem(EditorMenuConst.AssetBundle + "Set All AssetBundle Names", false, 101)]
 		public static void SetAllAssetBundleNames()
 		{
 			string[] assetPaths = AssetDatabase.GetAllAssetPaths();
@@ -85,6 +86,37 @@ namespace KDGame.Editor.CI
 				else
 					Debug.LogError("Force remove AssetBundle name failed: " + bundleName);
 			}
+			Debug.Log("Set All AssetBundle Names End!");
+		}
+
+		public static void ClearAllAssetBundleNames(bool rename)
+		{
+			foreach (var path in AssetDatabase.GetAllAssetPaths())
+			{
+				if (AssetDatabase.IsValidFolder(path) || AssetUtil.GetAssetType(path) == AssetUtil.AssetType.NONE) continue;
+				AssetImporter.GetAtPath(path).SetAssetBundleNameAndVariant("", "");
+			}
+			Debug.Log("Clear All AssetBundle Names End!");
+			if (rename)
+				SetAllAssetBundleNames();
+			else
+			{
+				AssetDatabase.SaveAssets();
+				AssetDatabase.RemoveUnusedAssetBundleNames();
+				AssetDatabase.Refresh();
+			}
+		}
+
+		[MenuItem(EditorMenuConst.AssetBundle + "Clear All AssetBundle Names", false, 102)]
+		public static void ClearAllAssetBundleNames()
+		{
+			ClearAllAssetBundleNames(false);
+		}
+
+		[MenuItem(EditorMenuConst.AssetBundle + "Clear And Rename All AssetBundle Names", false, 103)]
+		public static void ClearAndRenameAllAssetBundleNames()
+		{
+			ClearAllAssetBundleNames(true);
 		}
 
 		// TODO 处理AssetBundle变体
@@ -118,28 +150,36 @@ namespace KDGame.Editor.CI
 				}
 			}
 		}
+		#endregion
 
-		private static void GenManifestTxt(AssetBundleManifest manifest, string libPath)
+		private static void AddHashSuffixAndGenManifestTxt(AssetBundleManifest manifest, string libPath, string signedPath)
 		{
-			var dict = new Dictionary<string, string>();
+			// TODO 拿ScriptableObject
+			var myManifest = new BundleManifest(string.Empty);
+			// 清单Bundle
+			var manifestBundleName = Path.Combine(libPath, ABUtil.ManifestPath);
+			var fileInfo = new FileInfo(manifestBundleName);
+			var manifestBundleHash = ComUtil.GetMD5(manifestBundleName, false);
+			myManifest.SetManifestEntry(ABUtil.ManifestPath, manifestBundleHash, fileInfo.Length);
+			File.Copy(manifestBundleName, Path.Combine(signedPath, ABUtil.ManifestPath + "-" + manifestBundleHash));
+			// 其他Bundle
 			foreach (var abName in manifest.GetAllAssetBundles())
 			{
-				dict[abName] = manifest.GetAssetBundleHash(abName).ToString();
+				var fName = Path.Combine(libPath, abName);
+				fileInfo = new FileInfo(fName);
+				var abHash = manifest.GetAssetBundleHash(abName);
+				myManifest.SetOrAddEntry(abName, abHash.ToString(), fileInfo.Length);
+				File.Copy(fName, Path.Combine(signedPath, abName + "-" + abHash));
 			}
-			dict[ABUtil.ManifestPath] = ComUtil.GetMD5(Path.Combine(libPath, ABUtil.ManifestPath));
-			var content = new StringBuilder();
-			foreach (var kv in dict)
-			{
-				content.AppendLine($"{kv.Key} {kv.Value}");
-			}
-
-			var fPath = Path.Combine(libPath, CIConst.ManifestTxtName);
+			// 写文件
+			var fPath = Path.Combine(signedPath, CIConst.ManifestTxtName);
 			if (File.Exists(fPath))
 				File.Delete(fPath);
-			File.WriteAllText(fPath, content.ToString());
+			File.WriteAllText(fPath, myManifest.Serialize());
+			File.Move(fPath, Path.Combine(signedPath, CIConst.ManifestTxtName + "-" + ComUtil.GetMD5(fPath, false)));
 		}
-		
-		private static void RenameManifestAB(string libPath ,BuildTarget target)
+
+		private static void RenameManifestAB(string libPath, BuildTarget target)
 		{
 			var srcName = Path.Combine(libPath, target.ToString());
 			var dstName = Path.Combine(libPath, ABUtil.ManifestPath);

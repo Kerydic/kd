@@ -1,0 +1,5 @@
+﻿<Solution>
+  <Project Path="GameAOT.csproj" />
+  <Project Path="GameHotUpd.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
+</Solution>
